@@ -65,6 +65,12 @@ pnpm vercel --prod
 - Import the GitHub repo in Replit.
 - Add required secrets in the Replit Secrets tab.
 - Run the repl to start the dev server.
+### Required secrets (Replit)
+
+- `GOOGLE_SHEET_ID`
+- `GOOGLE_SERVICE_ACCOUNT_JSON`
+- `NEXT_PUBLIC_APP_NAME`
+- `NEXT_PUBLIC_GS1_LOOKUP_URL`
 
 ## Repository hygiene
 
