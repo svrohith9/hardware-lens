@@ -95,6 +95,20 @@ function extractData(htmls: Array<string | null>) {
   };
 }
 
+type EnrichmentData = {
+  Brand: string | null;
+  Model: string | null;
+  CPU: string | null;
+  RAM: string | null;
+  SSD: string | null;
+  Warranty: string | null;
+  ResaleUSD: string | null;
+  CO2kg: string | null;
+  iFixit: string | null;
+  ImageURL: string | null;
+  Notes: string | null;
+};
+
 type OpenFoodFactsResponse = {
   status: number;
   product?: {
@@ -113,21 +127,32 @@ type UpcItemDbResponse = {
   }>;
 };
 
-function mergePreferred(
-  primary: Record<string, string | null>,
-  secondary: Record<string, string | null>
-) {
-  const merged = { ...secondary };
+function mergePreferred(primary: Partial<EnrichmentData>, secondary: Partial<EnrichmentData>) {
+  const merged: Partial<EnrichmentData> = { ...secondary };
   for (const [key, value] of Object.entries(primary)) {
-    if (value) merged[key] = value;
+    if (value) merged[key as keyof EnrichmentData] = value as string;
   }
   return merged;
 }
 
-async function enrichBarcode(barcode: string) {
+async function enrichBarcode(barcode: string): Promise<EnrichmentData> {
   const cacheKey = `scrape:${barcode}`;
-  const cached = await kv.get(cacheKey);
-  if (cached) return cached as Record<string, string | null>;
+  const cached = await kv.get<EnrichmentData>(cacheKey);
+  if (cached) return cached;
+
+  const base: EnrichmentData = {
+    Brand: null,
+    Model: null,
+    CPU: null,
+    RAM: null,
+    SSD: null,
+    Warranty: null,
+    ResaleUSD: null,
+    CO2kg: null,
+    iFixit: null,
+    ImageURL: null,
+    Notes: "Auto-enriched"
+  };
 
   const off = await fetchJson<OpenFoodFactsResponse>(
     `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
@@ -164,18 +189,16 @@ async function enrichBarcode(barcode: string) {
     fetchHtml(manufacturerSearch)
   ]);
 
-  const extracted = extractData([gs1Html, shopHtml, manufacturerHtml]);
+  const extracted = extractData([gs1Html, shopHtml, manufacturerHtml]) as Partial<EnrichmentData>;
   const merged = mergePreferred(
     upcData ? mergePreferred(upcData, extracted) : extracted,
     offData ?? {}
   );
 
-  const result = {
+  const result: EnrichmentData = {
+    ...base,
     ...merged,
-    ResaleUSD: null,
-    CO2kg: null,
-    iFixit: null,
-    Notes: merged.Notes ?? "Auto-enriched"
+    Notes: merged.Notes ?? base.Notes
   };
 
   await kv.set(cacheKey, result, { ex: 60 * 60 * 24 });

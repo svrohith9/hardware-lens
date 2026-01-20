@@ -1,24 +1,8 @@
 # HardwareLens
 
+Scan hardware barcodes, enrich metadata, and sync to Google Sheets.
+
 ![HardwareLens demo](public/demo.gif)
-
-Scan hardware barcodes, enrich metadata, and sync to Google Sheets in seconds.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
-
-## Highlights
-
-- PWA scanner with offline queue + background sync
-- Edge API for enrichment + Google Sheets append
-- 24h caching with Vercel KV
-- Light/dark mode with confetti feedback
-
-## Tech stack
-
-- Next.js 14 (App Router) + TypeScript (strict)
-- Tailwind CSS + next-themes
-- Workbox service worker
-- Zod validation
 
 ## Quickstart
 
@@ -27,9 +11,9 @@ pnpm i
 pnpm dev
 ```
 
-## Environment
+## Env
 
-Create `.env.local` with:
+`.env.local`:
 
 ```
 GOOGLE_SHEET_ID=your_sheet_id
@@ -38,41 +22,26 @@ NEXT_PUBLIC_APP_NAME="HardwareLens"
 NEXT_PUBLIC_GS1_LOOKUP_URL="https://www.gs1.org/services/verified-by-gs1"
 ```
 
-## Google service account
-
-1. Create a service account in Google Cloud.
-2. Enable the Google Sheets API for the project.
-3. Download the JSON key and paste it as a single-line value in `.env.local`.
-4. Share your sheet with the service account `client_email` as Editor.
-
-Guide: https://developers.google.com/workspace/guides/create-credentials#service-account
-
 ## Data sources (free)
 
-- OpenFoodFacts product API
-- UPCItemDB trial API
-- GS1 Verified and public HTML hints
+- OpenFoodFacts
+- UPCItemDB (trial)
+- GS1 public HTML hints
 
-## Deploy (Vercel)
+## Deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
 
 ```bash
 pnpm build
 pnpm vercel --prod
 ```
 
-## Deploy (Replit)
+## Replit
 
-- Import the GitHub repo in Replit.
-- Add required secrets in the Replit Secrets tab.
-- Run the repl to start the dev server.
-### Required secrets (Replit)
+- Import the repo and add secrets: `GOOGLE_SHEET_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_GS1_LOOKUP_URL`.
 
-- `GOOGLE_SHEET_ID`
-- `GOOGLE_SERVICE_ACCOUNT_JSON`
-- `NEXT_PUBLIC_APP_NAME`
-- `NEXT_PUBLIC_GS1_LOOKUP_URL`
+## Notes
 
-## Repository hygiene
-
-- Never commit `.env.local` or service account keys.
-- Keep secrets in Vercel project env vars for production.
+- Keep `.env.local` and service account keys private.
+- Guide: https://developers.google.com/workspace/guides/create-credentials#service-account
