@@ -1,0 +1,7 @@
+node_modules
+.next
+.vercel
+.env.local
+.DS_Store
+secrets/
+ro-bot-494d6-e7137af1be4b.json
