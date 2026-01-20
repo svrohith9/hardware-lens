@@ -109,6 +109,20 @@ type EnrichmentData = {
   Notes: string | null;
 };
 
+type EnrichmentMeta = {
+  cacheHit: boolean;
+  sources: {
+    openFoodFacts: boolean;
+    upcItemDb: boolean;
+    htmlHints: boolean;
+  };
+};
+
+type EnrichmentResult = {
+  data: EnrichmentData;
+  meta: EnrichmentMeta;
+};
+
 type OpenFoodFactsResponse = {
   status: number;
   product?: {
@@ -135,10 +149,32 @@ function mergePreferred(primary: Partial<EnrichmentData>, secondary: Partial<Enr
   return merged;
 }
 
-async function enrichBarcode(barcode: string): Promise<EnrichmentData> {
+function metricKey(name: string) {
+  const day = new Date().toISOString().slice(0, 10);
+  return `metrics:${day}:${name}`;
+}
+
+async function logMetric(name: string) {
+  await kv.incr(metricKey(name));
+}
+
+function logEvent(event: string, payload: Record<string, unknown>) {
+  console.log(JSON.stringify({ event, ...payload }));
+}
+
+async function enrichBarcode(barcode: string): Promise<EnrichmentResult> {
   const cacheKey = `scrape:${barcode}`;
   const cached = await kv.get<EnrichmentData>(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    await logMetric("enrich_cache_hit");
+    return {
+      data: cached,
+      meta: {
+        cacheHit: true,
+        sources: { openFoodFacts: false, upcItemDb: false, htmlHints: false }
+      }
+    };
+  }
 
   const base: EnrichmentData = {
     Brand: null,
@@ -202,7 +238,22 @@ async function enrichBarcode(barcode: string): Promise<EnrichmentData> {
   };
 
   await kv.set(cacheKey, result, { ex: 60 * 60 * 24 });
-  return result;
+  const meta: EnrichmentMeta = {
+    cacheHit: false,
+    sources: {
+      openFoodFacts: Boolean(offData),
+      upcItemDb: Boolean(upcData),
+      htmlHints: Boolean(
+        extracted.Brand || extracted.Model || extracted.CPU || extracted.RAM || extracted.SSD || extracted.ImageURL
+      )
+    }
+  };
+
+  if (meta.sources.openFoodFacts) await logMetric("source_openfoodfacts");
+  if (meta.sources.upcItemDb) await logMetric("source_upcitemdb");
+  if (meta.sources.htmlHints) await logMetric("source_html");
+
+  return { data: result, meta };
 }
 
 async function ensureHeader(accessToken: string, sheetId: string) {
@@ -318,13 +369,22 @@ export async function POST(request: Request) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
+  const requestId = crypto.randomUUID();
+  const start = Date.now();
+  await logMetric("api_total");
+  logEvent("api_enrich_start", { requestId });
+
   if (await rateLimit(request)) {
+    await logMetric("api_rate_limited");
+    logEvent("api_enrich_rate_limited", { requestId });
     return new NextResponse("Rate limit exceeded", { status: 429, headers: cors });
   }
 
   const body = await request.json();
   const parsed = barcodeSchema.safeParse(body?.barcode);
   if (!parsed.success) {
+    await logMetric("api_invalid");
+    logEvent("api_enrich_invalid_barcode", { requestId });
     return new NextResponse("Invalid barcode", { status: 400, headers: cors });
   }
 
@@ -337,7 +397,7 @@ export async function POST(request: Request) {
     const accessToken = await getAccessToken("https://www.googleapis.com/auth/spreadsheets");
     await ensureHeader(accessToken, sheetId);
 
-    const enriched = await enrichBarcode(parsed.data);
+    const { data: enriched, meta } = await enrichBarcode(parsed.data);
     const row = {
       Timestamp: new Date().toISOString(),
       Barcode: parsed.data,
@@ -356,10 +416,23 @@ export async function POST(request: Request) {
 
     await appendRow(accessToken, sheetId, row);
     await kv.del("last-scans");
+    await logMetric("api_success");
+    logEvent("api_enrich_success", {
+      requestId,
+      durationMs: Date.now() - start,
+      cacheHit: meta.cacheHit,
+      sources: meta.sources
+    });
 
     return NextResponse.json(row, { headers: cors });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    await logMetric("api_error");
+    logEvent("api_enrich_error", {
+      requestId,
+      durationMs: Date.now() - start,
+      message
+    });
     return NextResponse.json({ error: message }, { status: 500, headers: cors });
   }
 }
