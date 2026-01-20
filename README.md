@@ -60,6 +60,12 @@ pnpm build
 pnpm vercel --prod
 ```
 
+## Deploy (Replit)
+
+- Import the GitHub repo in Replit.
+- Add required secrets in the Replit Secrets tab.
+- Run the repl to start the dev server.
+
 ## Repository hygiene
 
 - Never commit `.env.local` or service account keys.
