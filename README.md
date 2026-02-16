@@ -45,3 +45,9 @@ pnpm vercel --prod
 
 - Keep `.env.local` and service account keys private.
 - Guide: https://developers.google.com/workspace/guides/create-credentials#service-account
+
+## Ops additions
+- Health endpoint: `GET /api/health`
+- Strict env validation for Google credentials/sheet id on API requests
+- Default security headers configured in `next.config.mjs`
+
