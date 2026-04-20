@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { kv } from "@/lib/kv";
 import { barcodeSchema } from "@/lib/schemas";
 import { getAccessToken } from "@/lib/google";
+import { getRequiredEnv } from "@/lib/env";
 
 export const runtime = "edge";
 
@@ -336,9 +337,12 @@ export async function GET(request: Request) {
     return NextResponse.json(cached, { headers: cors });
   }
 
-  const sheetId = process.env.GOOGLE_SHEET_ID;
-  if (!sheetId) {
-    return new NextResponse("Missing GOOGLE_SHEET_ID", { status: 500, headers: cors });
+  let sheetId: string;
+  try {
+    sheetId = getRequiredEnv().GOOGLE_SHEET_ID;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid environment configuration";
+    return new NextResponse(message, { status: 500, headers: cors });
   }
 
   const accessToken = await getAccessToken("https://www.googleapis.com/auth/spreadsheets");
@@ -388,9 +392,12 @@ export async function POST(request: Request) {
     return new NextResponse("Invalid barcode", { status: 400, headers: cors });
   }
 
-  const sheetId = process.env.GOOGLE_SHEET_ID;
-  if (!sheetId) {
-    return new NextResponse("Missing GOOGLE_SHEET_ID", { status: 500, headers: cors });
+  let sheetId: string;
+  try {
+    sheetId = getRequiredEnv().GOOGLE_SHEET_ID;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid environment configuration";
+    return new NextResponse(message, { status: 500, headers: cors });
   }
 
   try {
